@@ -1,0 +1,18 @@
+services:
+  spark-api:
+    build: ./spark-api
+    restart: unless-stopped
+    environment:
+      SUMMARY_WINDOW_SECONDS: ${SUMMARY_WINDOW_SECONDS:-120}
+      SUMMARY_REFRESH_SECONDS: ${SUMMARY_REFRESH_SECONDS:-30}
+    ports:
+      - "8000:8000"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - spark-api
+    profiles:
+      - tunnel
