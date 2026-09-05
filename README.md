@@ -33,6 +33,10 @@ The API listens on port `8000`. Copy `.env.example` to `.env` and provide a Clou
 - `radio.albertomunoz.ai` — frontend
 - `api-radio.albertomunoz.ai` — Spark API through Cloudflare Tunnel
 
+For the current frontend-only prototype, Vercel builds the static mockup in
+`vercel-preview/`. The production Next.js interface will replace this target
+when it is connected to the live Spark API.
+
 ## Next integration slice
 
 1. Resolve and validate authorized station stream URLs.
