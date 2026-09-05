@@ -25,11 +25,25 @@ if [ ! -f .env ]; then
   echo "Created .env. Configure ASR_URL, LLM_URL and CLOUDFLARE_TUNNEL_TOKEN before enabling AI and tunnel services."
 fi
 
+SPARK_API_PORT="$(sed -n 's/^SPARK_API_PORT=//p' .env | tail -n 1)"
+if [ -z "$SPARK_API_PORT" ]; then
+  for candidate in $(seq 8010 8099); do
+    if ! ss -H -ltn "sport = :${candidate}" | grep -q .; then
+      SPARK_API_PORT="$candidate"
+      break
+    fi
+  done
+  if [ -z "$SPARK_API_PORT" ]; then
+    echo "No free port was found between 8010 and 8099."
+    exit 1
+  fi
+  printf '\nSPARK_API_PORT=%s\n' "$SPARK_API_PORT" >> .env
+  echo "Selected free host port: $SPARK_API_PORT"
+fi
+
 docker compose build spark-api
 docker compose up -d spark-api
 sleep 3
-SPARK_API_PORT="$(sed -n 's/^SPARK_API_PORT=//p' .env | tail -n 1)"
-SPARK_API_PORT="${SPARK_API_PORT:-8010}"
 curl --fail --show-error "http://localhost:${SPARK_API_PORT}/health"
 echo
 echo "Spark API is running locally on http://localhost:${SPARK_API_PORT}"

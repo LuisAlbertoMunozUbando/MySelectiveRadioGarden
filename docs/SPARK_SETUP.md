@@ -9,8 +9,9 @@ chmod +x scripts/spark-install.sh scripts/spark-check.sh
 ./scripts/spark-install.sh
 ```
 
-Confirm that `http://localhost:8010/health` reports `status: ok` and
-`ffmpeg: true`.
+The installer selects the first available host port from `8010` through `8099`,
+saves it as `SPARK_API_PORT` in `.env`, and reuses it later. Confirm that the
+reported `/health` URL returns `status: ok` and `ffmpeg: true`.
 
 ## 2. Connect the local AI services
 
