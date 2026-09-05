@@ -172,14 +172,18 @@ class RadioPipeline:
             return {"topic": "Transcripción reciente", "summary": transcript[-600:], "relevance": 0,
                     "transcript": transcript}
         prompt = ("Analiza una transcripción de radio. Responde exclusivamente JSON con topic, summary y "
-                  f"relevance (0-100). Idioma: {output_language}. Intereses: {', '.join(interests)}. Texto: {transcript}")
+                  f"relevance (0-100), sin Markdown ni comentarios. Idioma: {output_language}. "
+                  f"Intereses: {', '.join(interests)}. Texto: {transcript}")
         async with httpx.AsyncClient(timeout=90) as client:
             response = await client.post(f"{self.llm_url}/v1/chat/completions",
-                json={"model": self.llm_model, "messages": [{"role": "user", "content": prompt}], "temperature": 0.1})
+                json={"model": self.llm_model, "messages": [{"role": "user", "content": prompt}],
+                      "temperature": 0.1, "response_format": {"type": "json_object"}})
             response.raise_for_status()
             content = response.json()["choices"][0]["message"]["content"]
             try:
-                result = json.loads(content.strip().removeprefix("```json").removesuffix("```").strip())
+                cleaned = content.strip().removeprefix("```json").removeprefix("```").strip()
+                object_start = cleaned.find("{")
+                result, _ = json.JSONDecoder().raw_decode(cleaned[object_start:])
             except Exception:
                 result = {"topic": "Conversación en vivo", "summary": content, "relevance": 50}
             result["transcript"] = transcript
