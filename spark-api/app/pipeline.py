@@ -146,17 +146,17 @@ class RadioPipeline:
                     interval_bytes = interval_seconds * BYTES_PER_SECOND
                     wav_audio = self._wav_bytes(pcm[-interval_bytes:])
                     segment = await self._transcribe(wav_audio, station.get("language"))
-                    if self.archive_dir:
-                        try:
-                            await self._archive_audio(wav_audio, station)
-                        except Exception as exc:
-                            await self._publish(session, {"type": "archive_error", "station_id": station_id,
-                                                          "message": str(exc)[:500]})
                     if segment.strip():
                         transcript_segments.append(segment.strip())
                     transcript = " ".join(transcript_segments)
                     result = await self._summarize(transcript, session.output_language, session.interests)
                     result.update({"station_id": station_id, "station_name": station["name"], "updated_at": self._now()})
+                    if self.archive_dir:
+                        try:
+                            await self._archive_analysis(wav_audio, station, transcript, result)
+                        except Exception as exc:
+                            await self._publish(session, {"type": "archive_error", "station_id": station_id,
+                                                          "message": str(exc)[:500]})
                     session.results[station_id] = result
                     await self._publish(session, {"type": "station_update", "result": result})
                     if not session.continuous:
@@ -194,7 +194,8 @@ class RadioPipeline:
             payload = response.json()
             return payload.get("text") or payload.get("transcript") or str(payload)
 
-    async def _archive_audio(self, wav_audio: bytes, station: dict) -> None:
+    async def _archive_analysis(
+            self, wav_audio: bytes, station: dict, transcript: str, result: dict) -> None:
         try:
             local_now = datetime.now(ZoneInfo(self.archive_timezone))
         except Exception:
@@ -203,16 +204,40 @@ class RadioPipeline:
         destination = (Path(self.archive_dir) / local_now.strftime("%Y-%m-%d") /
                        (station_name or station["id"]) / local_now.strftime("%H"))
         destination.mkdir(parents=True, exist_ok=True)
-        output = destination / f"{local_now.strftime('%H-%M-%S')}.opus"
+        basename = local_now.strftime("%H-%M-%S")
+        audio_temp = destination / f"{basename}.opus.part"
+        audio_output = destination / f"{basename}.opus"
+        text_temp = destination / f"{basename}.txt.part"
+        text_output = destination / f"{basename}.txt"
+        json_temp = destination / f"{basename}.json.part"
+        json_output = destination / f"{basename}.json"
         process = await asyncio.create_subprocess_exec(
             "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
             "-i", "pipe:0", "-map_metadata", "-1", "-c:a", "libopus", "-b:a", "32k",
-            "-application", "audio", str(output), stdin=asyncio.subprocess.PIPE,
+            "-application", "audio", "-f", "opus", str(audio_temp), stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
         _, error = await process.communicate(wav_audio)
         if process.returncode:
-            output.unlink(missing_ok=True)
+            audio_temp.unlink(missing_ok=True)
             raise RuntimeError(error.decode(errors="replace")[-500:] or "Could not archive analyzed audio")
+        text_temp.write_text(
+            f"Estación: {station['name']}\n"
+            f"Fecha: {local_now.isoformat()}\n"
+            f"Tema: {result.get('topic', '')}\n"
+            f"Tipo: {result.get('content_type', '')}\n\n"
+            f"Resumen:\n{result.get('summary', '')}\n\n"
+            f"Transcripción:\n{transcript}\n",
+            encoding="utf-8")
+        json_temp.write_text(json.dumps({
+            "station": station,
+            "analyzed_at": local_now.isoformat(),
+            "analysis_duration_seconds": 30,
+            "transcript": transcript,
+            "analysis": result,
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
+        audio_temp.replace(audio_output)
+        text_temp.replace(text_output)
+        json_temp.replace(json_output)
 
     async def _summarize(self, transcript: str, output_language: str, interests: list[str]) -> dict:
         if not self.llm_url:
