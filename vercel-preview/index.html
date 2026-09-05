@@ -5,14 +5,14 @@ const API='https://api-radio.albertomunoz.ai';
 const interests=[];
 const defaults=[
  {id:'formula',flag:'🇲🇽',name:'Radio Fórmula',city:'Ciudad de México',language:'es',stream_url:'',radio_garden_url:'https://radio.garden/',active:false,color:'#e76f51'},
- {id:'w-radio',flag:'🇲🇽',name:'W Radio 96.9 FM',city:'Ciudad de México',language:'es',stream_url:'',radio_garden_url:'https://radio.garden/listen/w-radio-fm-96-9/o3jhb5Bg',active:false,color:'#d99b29'},
- {id:'bbc',flag:'🇬🇧',name:'BBC World Service',city:'Londres',language:'en',stream_url:'',radio_garden_url:'https://radio.garden/listen/bbc-world-service/FXyhz9Xk',active:false,color:'#457b9d'},
+ {id:'w-radio',flag:'🇲🇽',name:'W Radio 96.9 FM',city:'Ciudad de México',language:'es',stream_url:'https://radio.garden/api/ara/content/listen/o3jhb5Bg/channel.mp3',radio_garden_url:'https://radio.garden/listen/w-radio-fm-96-9/o3jhb5Bg',active:false,color:'#d99b29'},
+ {id:'bbc',flag:'🇬🇧',name:'BBC World Service',city:'Londres',language:'en',stream_url:'https://radio.garden/api/ara/content/listen/FXyhz9Xk/channel.mp3',radio_garden_url:'https://radio.garden/listen/bbc-world-service/FXyhz9Xk',active:false,color:'#457b9d'},
  {id:'france-info',flag:'🇫🇷',name:'France Info',city:'París',language:'fr',stream_url:'https://icecast.radiofrance.fr/franceinfo-midfi.mp3',radio_garden_url:'https://radio.garden/listen/franceinfo/zY5P7lth?hl=es-419',active:true,color:'#8a5cf5'},
- {id:'npr',flag:'🇺🇸',name:'NPR 24 Hour Program Stream',city:'Estados Unidos',language:'en',stream_url:'',radio_garden_url:'https://radio.garden/listen/npr-24-hour-program-stream/LpZn0LbR',active:false,color:'#2a9d8f'},
- {id:'npr-illinois',flag:'🇺🇸',name:'NPR Illinois WUIS',city:'Springfield, Illinois',language:'en',stream_url:'',radio_garden_url:'https://radio.garden/listen/npr-illinois-wuis/EywGt5oU',active:false,color:'#3b82a0'},
- {id:'rai-radio-1',flag:'🇮🇹',name:'RAI Radio 1',city:'Roma',language:'it',stream_url:'',radio_garden_url:'https://radio.garden/listen/rai-radio-1/VgSq5B1V',active:false,color:'#c43d4f'}
+ {id:'npr',flag:'🇺🇸',name:'NPR 24 Hour Program Stream',city:'Estados Unidos',language:'en',stream_url:'https://radio.garden/api/ara/content/listen/LpZn0LbR/channel.mp3',radio_garden_url:'https://radio.garden/listen/npr-24-hour-program-stream/LpZn0LbR',active:false,color:'#2a9d8f'},
+ {id:'npr-illinois',flag:'🇺🇸',name:'NPR Illinois WUIS',city:'Springfield, Illinois',language:'en',stream_url:'https://radio.garden/api/ara/content/listen/EywGt5oU/channel.mp3',radio_garden_url:'https://radio.garden/listen/npr-illinois-wuis/EywGt5oU',active:false,color:'#3b82a0'},
+ {id:'rai-radio-1',flag:'🇮🇹',name:'RAI Radio 1',city:'Roma',language:'it',stream_url:'https://radio.garden/api/ara/content/listen/VgSq5B1V/channel.mp3',radio_garden_url:'https://radio.garden/listen/rai-radio-1/VgSq5B1V',active:false,color:'#c43d4f'}
 ];
-const stationCatalogVersion='3';
+const stationCatalogVersion='4';
 let stations=localStorage.getItem('radio-stations-version')===stationCatalogVersion
  ? (JSON.parse(localStorage.getItem('radio-stations')||'null')||defaults) : defaults;
 localStorage.setItem('radio-stations-version',stationCatalogVersion);
