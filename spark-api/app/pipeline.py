@@ -3,12 +3,15 @@ import io
 import json
 import math
 import os
+import re
 import shutil
 import wave
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import AsyncIterator
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -37,6 +40,8 @@ class RadioPipeline:
         self.asr_url = os.getenv("ASR_URL", "").rstrip("/")
         self.llm_url = os.getenv("LLM_URL", "").rstrip("/")
         self.llm_model = os.getenv("LLM_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+        self.archive_dir = os.getenv("AUDIO_ARCHIVE_DIR", "").strip()
+        self.archive_timezone = os.getenv("AUDIO_ARCHIVE_TIMEZONE", "America/Monterrey")
         self.asr_backend = "nvidia-nim" if self.asr_url else "pending"
         self.summary_backend = "vllm" if self.llm_url else "extractive-fallback"
 
@@ -50,7 +55,8 @@ class RadioPipeline:
     def configuration(self) -> dict:
         return {"summary_window_seconds": self.window_seconds, "summary_refresh_seconds": self.refresh_seconds,
                 "asr_configured": bool(self.asr_url), "llm_configured": bool(self.llm_url),
-                "llm_model": self.llm_model}
+                "llm_model": self.llm_model, "audio_archive_enabled": bool(self.archive_dir),
+                "audio_archive_timezone": self.archive_timezone}
 
     async def start(self, session: SessionRuntime) -> None:
         if not await self.ffmpeg_available():
@@ -125,8 +131,14 @@ class RadioPipeline:
                     last_analysis = now
                     pcm = b"".join(chunks)
                     interval_bytes = self.refresh_seconds * BYTES_PER_SECOND
-                    segment = await self._transcribe(
-                        self._wav_bytes(pcm[-interval_bytes:]), station.get("language"))
+                    wav_audio = self._wav_bytes(pcm[-interval_bytes:])
+                    segment = await self._transcribe(wav_audio, station.get("language"))
+                    if self.archive_dir:
+                        try:
+                            await self._archive_audio(wav_audio, station)
+                        except Exception as exc:
+                            await self._publish(session, {"type": "archive_error", "station_id": station_id,
+                                                          "message": str(exc)[:500]})
                     if segment.strip():
                         transcript_segments.append(segment.strip())
                     transcript = " ".join(transcript_segments)
@@ -166,6 +178,26 @@ class RadioPipeline:
             response.raise_for_status()
             payload = response.json()
             return payload.get("text") or payload.get("transcript") or str(payload)
+
+    async def _archive_audio(self, wav_audio: bytes, station: dict) -> None:
+        try:
+            local_now = datetime.now(ZoneInfo(self.archive_timezone))
+        except Exception:
+            local_now = datetime.now(timezone.utc)
+        station_name = re.sub(r"[^\w .-]+", "_", station["name"], flags=re.UNICODE).strip(" ._")
+        destination = (Path(self.archive_dir) / local_now.strftime("%Y-%m-%d") /
+                       (station_name or station["id"]) / local_now.strftime("%H"))
+        destination.mkdir(parents=True, exist_ok=True)
+        output = destination / f"{local_now.strftime('%H-%M-%S')}.opus"
+        process = await asyncio.create_subprocess_exec(
+            "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+            "-i", "pipe:0", "-map_metadata", "-1", "-c:a", "libopus", "-b:a", "32k",
+            "-application", "audio", str(output), stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
+        _, error = await process.communicate(wav_audio)
+        if process.returncode:
+            output.unlink(missing_ok=True)
+            raise RuntimeError(error.decode(errors="replace")[-500:] or "Could not archive analyzed audio")
 
     async def _summarize(self, transcript: str, output_language: str, interests: list[str]) -> dict:
         if not self.llm_url:
