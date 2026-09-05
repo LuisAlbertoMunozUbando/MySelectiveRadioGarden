@@ -7,10 +7,14 @@ const defaults=[
  {id:'formula',flag:'🇲🇽',name:'Radio Fórmula',city:'Ciudad de México',language:'es',stream_url:'',radio_garden_url:'https://radio.garden/',active:false,color:'#e76f51'},
  {id:'w-radio',flag:'🇲🇽',name:'W Radio',city:'Ciudad de México',language:'es',stream_url:'',radio_garden_url:'https://radio.garden/',active:false,color:'#d99b29'},
  {id:'bbc',flag:'🇬🇧',name:'BBC World Service',city:'Londres',language:'en',stream_url:'',radio_garden_url:'https://radio.garden/',active:false,color:'#457b9d'},
- {id:'france-info',flag:'🇫🇷',name:'France Info',city:'París',language:'fr',stream_url:'https://icecast.radiofrance.fr/franceinfo-midfi.mp3',radio_garden_url:'https://www.radiofrance.fr/franceinfo',active:true,color:'#8a5cf5'},
+ {id:'france-info',flag:'🇫🇷',name:'France Info',city:'París',language:'fr',stream_url:'https://icecast.radiofrance.fr/franceinfo-midfi.mp3',radio_garden_url:'https://radio.garden/listen/franceinfo/zY5P7lth?hl=es-419',active:true,color:'#8a5cf5'},
  {id:'npr',flag:'🇺🇸',name:'NPR',city:'Washington, D.C.',language:'en',stream_url:'',radio_garden_url:'https://radio.garden/',active:false,color:'#2a9d8f'}
 ];
-let stations=JSON.parse(localStorage.getItem('radio-stations')||'null')||defaults;
+const stationCatalogVersion='2';
+let stations=localStorage.getItem('radio-stations-version')===stationCatalogVersion
+ ? (JSON.parse(localStorage.getItem('radio-stations')||'null')||defaults) : defaults;
+localStorage.setItem('radio-stations-version',stationCatalogVersion);
+localStorage.setItem('radio-stations',JSON.stringify(stations));
 let running=false,seconds=0,playing=-1,tick,poll,sessionId=null,results={};
 const cards=document.querySelector('#cards'),checks=document.querySelector('#checks');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
