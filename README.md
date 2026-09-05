@@ -26,7 +26,7 @@ npm run dev
 docker compose up --build
 ```
 
-The API listens on port `8000`. Copy `.env.example` to `.env` and provide a Cloudflare Tunnel token only when the tunnel has been created.
+The API listens on host port `8010` by default (container port `8000`). Copy `.env.example` to `.env` and provide a Cloudflare Tunnel token only when the tunnel has been created.
 
 For the DGX Spark installation, follow [`docs/SPARK_SETUP.md`](docs/SPARK_SETUP.md)
 or run `./scripts/spark-install.sh` after cloning the repository.

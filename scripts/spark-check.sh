@@ -16,9 +16,11 @@ echo "Containers"
 docker compose ps
 
 echo "API"
-curl --fail --show-error http://localhost:8000/health
+SPARK_API_PORT="$(sed -n 's/^SPARK_API_PORT=//p' .env | tail -n 1)"
+SPARK_API_PORT="${SPARK_API_PORT:-8010}"
+curl --fail --show-error "http://localhost:${SPARK_API_PORT}/health"
 echo
 
 echo "Diagnostics"
-curl --fail --show-error http://localhost:8000/v1/diagnostics
+curl --fail --show-error "http://localhost:${SPARK_API_PORT}/v1/diagnostics"
 echo

@@ -28,6 +28,8 @@ fi
 docker compose build spark-api
 docker compose up -d spark-api
 sleep 3
-curl --fail --show-error http://localhost:8000/health
+SPARK_API_PORT="$(sed -n 's/^SPARK_API_PORT=//p' .env | tail -n 1)"
+SPARK_API_PORT="${SPARK_API_PORT:-8010}"
+curl --fail --show-error "http://localhost:${SPARK_API_PORT}/health"
 echo
-echo "Spark API is running locally on http://localhost:8000"
+echo "Spark API is running locally on http://localhost:${SPARK_API_PORT}"

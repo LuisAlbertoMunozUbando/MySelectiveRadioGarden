@@ -9,7 +9,7 @@ chmod +x scripts/spark-install.sh scripts/spark-check.sh
 ./scripts/spark-install.sh
 ```
 
-Confirm that `http://localhost:8000/health` reports `status: ok` and
+Confirm that `http://localhost:8010/health` reports `status: ok` and
 `ffmpeg: true`.
 
 ## 2. Connect the local AI services
