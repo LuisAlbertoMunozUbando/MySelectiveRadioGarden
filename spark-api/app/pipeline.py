@@ -25,6 +25,8 @@ class SessionRuntime:
     output_language: str
     interests: list[str]
     stations: list[dict]
+    analysis_duration_seconds: int = 30
+    continuous: bool = False
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     status: str = "starting"
     results: dict[str, dict] = field(default_factory=dict)
@@ -63,9 +65,18 @@ class RadioPipeline:
             raise RuntimeError("FFmpeg is not installed")
         self.sessions[session.id] = session
         session.status = "analyzing"
-        for station in session.stations:
-            session.tasks.append(asyncio.create_task(self._monitor_station(session, station)))
+        station_tasks = [asyncio.create_task(self._monitor_station(session, station))
+                         for station in session.stations]
+        session.tasks.extend(station_tasks)
+        if not session.continuous:
+            session.tasks.append(asyncio.create_task(self._complete_session(session, station_tasks)))
         await self._publish(session, {"type": "session_started", "session_id": session.id})
+
+    async def _complete_session(self, session: SessionRuntime, station_tasks: list[asyncio.Task]) -> None:
+        await asyncio.gather(*station_tasks, return_exceptions=True)
+        if session.id in self.sessions:
+            session.status = "completed"
+            await self._publish(session, {"type": "session_completed", "session_id": session.id})
 
     async def stop(self, session_id: str) -> bool:
         session = self.sessions.pop(session_id, None)
@@ -107,6 +118,7 @@ class RadioPipeline:
 
     async def _monitor_station(self, session: SessionRuntime, station: dict) -> None:
         station_id, max_bytes = station["id"], self.window_seconds * BYTES_PER_SECOND
+        interval_seconds = session.analysis_duration_seconds if not session.continuous else self.refresh_seconds
         chunks: deque[bytes] = deque()
         transcript_segments: deque[str] = deque(
             maxlen=max(1, math.ceil(self.window_seconds / self.refresh_seconds)))
@@ -127,10 +139,11 @@ class RadioPipeline:
                 while buffered > max_bytes and chunks:
                     buffered -= len(chunks.popleft())
                 now = asyncio.get_running_loop().time()
-                if now - last_analysis >= self.refresh_seconds and buffered >= min(max_bytes, 20 * BYTES_PER_SECOND):
+                if now - last_analysis >= interval_seconds and buffered >= min(
+                        max_bytes, interval_seconds * BYTES_PER_SECOND):
                     last_analysis = now
                     pcm = b"".join(chunks)
-                    interval_bytes = self.refresh_seconds * BYTES_PER_SECOND
+                    interval_bytes = interval_seconds * BYTES_PER_SECOND
                     wav_audio = self._wav_bytes(pcm[-interval_bytes:])
                     segment = await self._transcribe(wav_audio, station.get("language"))
                     if self.archive_dir:
@@ -146,6 +159,8 @@ class RadioPipeline:
                     result.update({"station_id": station_id, "station_name": station["name"], "updated_at": self._now()})
                     session.results[station_id] = result
                     await self._publish(session, {"type": "station_update", "result": result})
+                    if not session.continuous:
+                        return
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -203,9 +218,14 @@ class RadioPipeline:
         if not self.llm_url:
             return {"topic": "Transcripción reciente", "summary": transcript[-600:], "relevance": 0,
                     "transcript": transcript}
-        prompt = ("Analiza una transcripción de radio. Responde exclusivamente JSON con topic, summary y "
-                  f"relevance (0-100), sin Markdown ni comentarios. Idioma: {output_language}. "
-                  f"Intereses: {', '.join(interests)}. Texto: {transcript}")
+        interest_instruction = (
+            f"Evalúa relevance (0-100) para estos intereses: {', '.join(interests)}."
+            if interests else
+            "El análisis debe ser neutral: no hay temas preferidos. Usa relevance=0."
+        )
+        prompt = ("Analiza una transcripción de radio. Responde exclusivamente JSON con topic, summary, "
+                  f"content_type y relevance, sin Markdown ni comentarios. Idioma: {output_language}. "
+                  f"{interest_instruction} Texto: {transcript}")
         async with httpx.AsyncClient(timeout=90) as client:
             response = await client.post(f"{self.llm_url}/v1/chat/completions",
                 json={"model": self.llm_model, "messages": [{"role": "user", "content": prompt}],
