@@ -25,6 +25,8 @@ class StartSession(BaseModel):
     stations: list[Station] = Field(min_length=1, max_length=25)
     output_language: str = "es"
     interests: list[str] = Field(default_factory=list, max_length=50)
+    analysis_duration_seconds: int = Field(default=30, ge=20, le=120)
+    continuous: bool = False
 
 
 pipeline = RadioPipeline()
@@ -59,6 +61,7 @@ async def start_session(request: StartSession) -> dict:
     session_id = str(uuid4())
     runtime = SessionRuntime(
         id=session_id, output_language=request.output_language, interests=request.interests,
+        analysis_duration_seconds=request.analysis_duration_seconds, continuous=request.continuous,
         stations=[{**station.model_dump(mode="json"), "stream_url": str(station.stream_url),
                    "radio_garden_url": str(station.radio_garden_url) if station.radio_garden_url else None}
                   for station in request.stations])
