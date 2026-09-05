@@ -5,6 +5,12 @@ services:
     environment:
       SUMMARY_WINDOW_SECONDS: ${SUMMARY_WINDOW_SECONDS:-120}
       SUMMARY_REFRESH_SECONDS: ${SUMMARY_REFRESH_SECONDS:-30}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://radio.albertomunoz.ai}
+      ASR_URL: ${ASR_URL:-}
+      LLM_URL: ${LLM_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
 

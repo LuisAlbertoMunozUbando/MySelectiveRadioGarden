@@ -28,6 +28,9 @@ docker compose up --build
 
 The API listens on port `8000`. Copy `.env.example` to `.env` and provide a Cloudflare Tunnel token only when the tunnel has been created.
 
+For the DGX Spark installation, follow [`docs/SPARK_SETUP.md`](docs/SPARK_SETUP.md)
+or run `./scripts/spark-install.sh` after cloning the repository.
+
 ## Proposed production domains
 
 - `radio.albertomunoz.ai` — frontend
