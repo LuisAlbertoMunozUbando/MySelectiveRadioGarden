@@ -1,6 +1,7 @@
 import asyncio
 import io
 import json
+import math
 import os
 import shutil
 import wave
@@ -101,6 +102,8 @@ class RadioPipeline:
     async def _monitor_station(self, session: SessionRuntime, station: dict) -> None:
         station_id, max_bytes = station["id"], self.window_seconds * BYTES_PER_SECOND
         chunks: deque[bytes] = deque()
+        transcript_segments: deque[str] = deque(
+            maxlen=max(1, math.ceil(self.window_seconds / self.refresh_seconds)))
         buffered, process = 0, None
         try:
             process = await asyncio.create_subprocess_exec(
@@ -120,7 +123,13 @@ class RadioPipeline:
                 now = asyncio.get_running_loop().time()
                 if now - last_analysis >= self.refresh_seconds and buffered >= min(max_bytes, 20 * BYTES_PER_SECOND):
                     last_analysis = now
-                    transcript = await self._transcribe(self._wav_bytes(b"".join(chunks)), station.get("language"))
+                    pcm = b"".join(chunks)
+                    interval_bytes = self.refresh_seconds * BYTES_PER_SECOND
+                    segment = await self._transcribe(
+                        self._wav_bytes(pcm[-interval_bytes:]), station.get("language"))
+                    if segment.strip():
+                        transcript_segments.append(segment.strip())
+                    transcript = " ".join(transcript_segments)
                     result = await self._summarize(transcript, session.output_language, session.interests)
                     result.update({"station_id": station_id, "station_name": station["name"], "updated_at": self._now()})
                     session.results[station_id] = result
@@ -142,7 +151,15 @@ class RadioPipeline:
     async def _transcribe(self, wav_audio: bytes, language: str | None) -> str:
         if not self.asr_url:
             return "ASR_URL no está configurado todavía en el Spark."
-        data = {"language": language} if language else {}
+        language_codes = {
+            "ar": "ar-AR", "de": "de-DE", "en": "en-US", "es": "es-US",
+            "fr": "fr-FR", "he": "he-IL", "hi": "hi-IN", "it": "it-IT",
+            "ja": "ja-JP", "ko": "ko-KR", "nl": "nl-NL", "no": "nb-NO",
+            "pl": "pl-PL", "pt": "pt-BR", "ru": "ru-RU", "sv": "sv-SE",
+            "th": "th-TH", "tr": "tr-TR",
+        }
+        normalized_language = language_codes.get((language or "").lower(), language or "multi")
+        data = {"language": normalized_language}
         async with httpx.AsyncClient(timeout=90) as client:
             response = await client.post(f"{self.asr_url}/v1/audio/transcriptions", data=data,
                                          files={"file": ("radio.wav", wav_audio, "audio/wav")})
