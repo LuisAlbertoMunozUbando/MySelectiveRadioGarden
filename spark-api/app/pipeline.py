@@ -185,7 +185,7 @@ class RadioPipeline:
             "pl": "pl-PL", "pt": "pt-BR", "ru": "ru-RU", "sv": "sv-SE",
             "th": "th-TH", "tr": "tr-TR",
         }
-        normalized_language = language_codes.get((language or "").lower(), language or "multi")
+        normalized_language = language_codes.get((language or "").lower(), "multi")
         data = {"language": normalized_language}
         async with httpx.AsyncClient(timeout=90) as client:
             response = await client.post(f"{self.asr_url}/v1/audio/transcriptions", data=data,
