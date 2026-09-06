@@ -11,9 +11,10 @@ const defaults=[
  {id:'npr',flag:'🇺🇸',name:'NPR 24 Hour Program Stream',city:'Estados Unidos',language:'en',stream_url:'https://npr-ice.streamguys1.com/live.mp3',radio_garden_url:'https://radio.garden/listen/npr-24-hour-program-stream/LpZn0LbR',active:false,color:'#2a9d8f'},
  {id:'npr-illinois',flag:'🇺🇸',name:'NPR Illinois WUIS',city:'Springfield, Illinois',language:'en',stream_url:'https://war.streamguys1.com:7785/wuis.mp3',radio_garden_url:'https://radio.garden/listen/npr-illinois-wuis/EywGt5oU',active:false,color:'#3b82a0'},
  {id:'rai-radio-1',flag:'🇮🇹',name:'RAI Radio 1',city:'Roma',language:'it',stream_url:'https://d3k8wzt41aflvx.cloudfront.net/RAIP/Live.m3u8',radio_garden_url:'https://radio.garden/listen/rai-radio-1/VgSq5B1V',active:false,color:'#c43d4f'},
- {id:'wrep-live',flag:'🇯🇵',name:'WREP Live',city:'Tokio',language:'ja',stream_url:'http://c13.radioboss.fm:8200/stream',radio_garden_url:'https://radio.garden/listen/wrep-live/ZR14bWZD',active:false,color:'#7c3aed'}
+ {id:'wrep-live',flag:'🇯🇵',name:'WREP Live',city:'Tokio',language:'ja',stream_url:'http://c13.radioboss.fm:8200/stream',radio_garden_url:'https://radio.garden/listen/wrep-live/ZR14bWZD',active:false,color:'#7c3aed'},
+ {id:'shaanxi-news',flag:'🇨🇳',name:'Shaanxi News Radio FM 106.6',city:'Shaanxi',language:'zh',stream_url:'https://lhttp.qingting.fm/live/1600/64k.mp3',radio_garden_url:'https://radio.garden/listen/shaanxi-news-radio-fm-106-6/0mKQGIgA',active:false,color:'#dc2626'}
 ];
-const stationCatalogVersion='10';
+const stationCatalogVersion='11';
 let stations=localStorage.getItem('radio-stations-version')===stationCatalogVersion
  ? (JSON.parse(localStorage.getItem('radio-stations')||'null')||defaults) : defaults;
 localStorage.setItem('radio-stations-version',stationCatalogVersion);
