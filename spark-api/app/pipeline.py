@@ -242,14 +242,16 @@ class RadioPipeline:
     async def _summarize(self, transcript: str, output_language: str, interests: list[str]) -> dict:
         if not self.llm_url:
             return {"topic": "Transcripción reciente", "summary": transcript[-600:], "relevance": 0,
-                    "transcript": transcript}
+                    "transcript": transcript, "translated_transcript": transcript}
         interest_instruction = (
             f"Evalúa relevance (0-100) para estos intereses: {', '.join(interests)}."
             if interests else
             "El análisis debe ser neutral: no hay temas preferidos. Usa relevance=0."
         )
         prompt = ("Analiza una transcripción de radio. Responde exclusivamente JSON con topic, summary, "
-                  f"content_type y relevance, sin Markdown ni comentarios. Idioma: {output_language}. "
+                  "content_type, relevance y translated_transcript, sin Markdown ni comentarios. "
+                  f"Escribe topic, summary y translated_transcript en el idioma ISO {output_language}. "
+                  "translated_transcript debe traducir fielmente la transcripción completa, sin resumirla. "
                   f"{interest_instruction} Texto: {transcript}")
         async with httpx.AsyncClient(timeout=90) as client:
             response = await client.post(f"{self.llm_url}/v1/chat/completions",
